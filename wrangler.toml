@@ -1,0 +1,20 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "madeinvikhroli-backend" # Replace with your project name
+main = "dist/src/main.js"   # Point this to your compiled entry file
+compatibility_date = "2026-07-04" # Use today's date
+compatibility_flags = [ "nodejs_compat" ]
+
+[build]
+command = "npm run build"
+watch_dir = "src"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "madeinvikhroli"
+database_id = "85222fe5-0b25-4031-9091-f0ab63e55d51"
+
+[alias]
+"class-transformer/storage" = "class-transformer/cjs/storage.js"
+"@nestjs/websockets/socket-module" = "./src/empty.ts"
+"@nestjs/microservices/microservices-module" = "./src/empty.ts"
+"@nestjs/microservices" = "./src/empty.ts"
