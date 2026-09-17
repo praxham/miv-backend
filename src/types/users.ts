@@ -25,3 +25,10 @@ export interface UserEntity {
 
   updatedAt: Date;
 }
+
+export interface UserTokenPayload {
+  sub: string;
+  emailId: string;
+  role?: string;
+  [key: string]: any;
+}

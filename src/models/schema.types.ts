@@ -10,29 +10,29 @@ export type PaymentStatus =
 export interface User {
   id: string;
 
-  emailId: string;
+  email_id: string;
 
   otp: string;
 
   otp_expires_at: Date;
 
-  upiId: string | null;
+  upi_id: string | null;
 
   role: UserRole;
 
   username: string | null;
 
-  profilePhoto: string | null;
+  profile_photo: string | null;
 
-  waNumber: string | null;
+  wa_number: string | null;
 
   description: string | null;
 
   socials: string | null; // Stored as stringified JSON in SQLite
 
-  createdAt: Date;
+  created_at: Date;
 
-  updatedAt: Date;
+  updated_at: Date;
 }
 
 export interface Artifact {
