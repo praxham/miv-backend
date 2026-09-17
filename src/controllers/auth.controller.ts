@@ -14,7 +14,7 @@ import jwt from "jsonwebtoken";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const findUserByEmailId = async (
-  emailId: User["emailId"],
+  emailId: User["email_id"],
 ): Promise<User | null> => {
   const rows = await query("SELECT * FROM users WHERE email_id = ? LIMIT 1", [
     emailId,
@@ -99,7 +99,7 @@ export const verifyOTP = async (
     if (isOTPValid && !isOTPExpired(storedOTPExpiresAt)) {
       const payload = {
         sub: existingUser.id,
-        emailId: existingUser.emailId,
+        emailId: existingUser.email_id,
       };
       const token = jwt.sign(payload, process.env["JWT_SECRET"] as string, {
         expiresIn: "7d",
