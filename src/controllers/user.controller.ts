@@ -53,18 +53,12 @@ export const updateUser = async (
   req: Request<{}, {}, UpdateUserInput>,
   res: Response,
 ) => {
-  const { emailId, upiId } = req.body;
+  const { upiId } = req.body;
 
   const id = req.user?.sub;
 
   try {
-    if (emailId) {
-      await query("UPDATE users SET email_id = ? WHERE id = ?", [emailId, id]);
-    }
-
-    if (upiId) {
-      await query("UPDATE users SET upi_id = ? WHERE id = ?", [upiId, id]);
-    }
+    await query("UPDATE users SET upi_id = ? WHERE id = ?", [upiId, id]);
 
     return res.status(200).json({
       success: true,
