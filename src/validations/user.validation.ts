@@ -22,15 +22,9 @@ export const getUsersSchema = z
     },
   );
 
-export const updateUserSchema = z
-  .object({
-    emailId: z.email("Invalid email address").optional(),
-    upiId: upiId().optional(),
-  })
-  .refine((data) => Boolean(data.emailId || data.upiId), {
-    message: "At least one field (emailId or upiId) must be provided",
-    path: ["emailId"],
-  });
+export const updateUserSchema = z.object({
+  upiId: upiId(),
+});
 
 export type GetUsersInput = z.infer<typeof getUsersSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
