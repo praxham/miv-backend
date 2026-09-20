@@ -29,3 +29,7 @@ export interface ArtifactEntity {
 
   limit: number;
 }
+
+export interface ValidationOptions {
+  includeFiles?: boolean;
+}

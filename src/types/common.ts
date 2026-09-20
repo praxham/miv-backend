@@ -4,3 +4,18 @@ export type CommonResponse = {
   message: string;
   data?: any;
 };
+
+export interface FileValidationOptions {
+  maxSizeInMb?: number;
+  allowedTypes?: string[];
+  message?: string;
+}
+
+export interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+}
