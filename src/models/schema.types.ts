@@ -52,11 +52,11 @@ export interface Artifact {
 
   amount: number;
 
-  deliverableFileFormats: string; // Stored as stringified JSON in SQLite
+  deliverable_file_formats: string; // Stored as stringified JSON in SQLite
 
-  deliverableFiles: string; // Stored as stringified JSON in SQLite
+  deliverable_files: string; // Stored as stringified JSON in SQLite
 
-  isPublished: string; // "true" | "false" based on schema string default
+  is_published: string; // "true" | "false" based on schema string default
 
   createdAt: Date;
 
@@ -108,32 +108,3 @@ export interface OrderWithRelations extends Order {
 
   buyer?: User;
 }
-
-export type CreateUserInput = Omit<User, "id" | "createdAt" | "updatedAt"> & {
-  id?: string;
-
-  role?: UserRole;
-
-  socials?: string | null;
-};
-
-export type CreateArtifactInput = Omit<
-  Artifact,
-  "id" | "createdAt" | "updatedAt"
-> & {
-  id?: string;
-
-  images?: string;
-
-  deliverableFileFormats?: string;
-
-  deliverableFiles?: string;
-
-  isPublished?: string;
-};
-
-export type CreateOrderInput = Omit<Order, "id" | "createdAt" | "updatedAt"> & {
-  id?: string;
-
-  paymentStatus?: PaymentStatus;
-};

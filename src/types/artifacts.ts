@@ -33,3 +33,8 @@ export interface ArtifactEntity {
 export interface ValidationOptions {
   includeFiles?: boolean;
 }
+
+export interface MulterFields {
+  imageFiles?: Express.Multer.File[];
+  deliverableFiles?: Express.Multer.File[];
+}

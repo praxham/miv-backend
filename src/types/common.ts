@@ -19,3 +19,5 @@ export interface MulterFile {
   size: number;
   buffer: Buffer;
 }
+
+export type AvailabilityField = { slug: string } | { username: string };
