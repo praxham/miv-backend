@@ -4,6 +4,7 @@ import userRoutes from "./user.routes.ts";
 import artistRoutes from "./artist.routes.ts";
 import availabilityRoutes from "./availability.routes.ts";
 import artifactRoutes from "./artifact.routes.ts";
+import orderRoutes from "./order.routes.ts";
 
 const router = express.Router();
 
@@ -11,6 +12,7 @@ router.use("/auth", authRoutes);
 router.use("/user", userRoutes);
 router.use("/artist", artistRoutes);
 router.use("/artifact", artifactRoutes);
+router.use("/order", orderRoutes);
 
 router.use("/availability", availabilityRoutes);
 
