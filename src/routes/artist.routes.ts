@@ -17,7 +17,11 @@ import multer from "multer";
 const artistRoutes = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-artistRoutes.get("/", validate(getArtistsSchema), getArtists);
+artistRoutes.get(
+  "/",
+  validate(getArtistsSchema, { mode: "query" }),
+  getArtists,
+);
 artistRoutes.post(
   "/admit",
   authenticate,

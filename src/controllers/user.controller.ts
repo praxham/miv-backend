@@ -4,14 +4,14 @@ import type {
   UpdateUserInput,
 } from "../validations/user.validation.ts";
 import query from "../config/d1.ts";
-import jwt from "jsonwebtoken";
 import { findUserByEmailId } from "./auth.controller.ts";
 
 export const getUsers = async (
   req: Request<{}, {}, GetUsersInput>,
   res: Response,
 ) => {
-  const { id, emailId, upiId, role } = req.body;
+  const { id, emailId, upiId, role } = req.query;
+
   const conditions: string[] = [];
   const values: any[] = [];
   if (id) {
@@ -34,11 +34,20 @@ export const getUsers = async (
   const sql = `SELECT * FROM users WHERE ${conditions.join(" AND ")}`;
 
   try {
-    const result = await query(sql, values);
+    const result = (await query(sql, values)) as any;
+    const users = Array.isArray(result) ? result : (result?.results ?? []);
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No users found matching the given criteria.",
+        data: [],
+      });
+    }
     return res.status(200).json({
       success: true,
       message: "users fetched succesfully",
-      data: result,
+      data: users,
     });
   } catch (error) {
     console.error(error);

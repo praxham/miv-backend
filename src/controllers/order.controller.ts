@@ -11,7 +11,7 @@ export const getOrders = async (
   req: Request<{}, {}, GetOrdersInput>,
   res: Response,
 ) => {
-  const { artist, page, limit } = req.body;
+  const { artist, page, limit } = req.query as unknown as GetOrdersInput;
   const id = req.user?.sub;
   const offset = (page - 1) * limit;
 

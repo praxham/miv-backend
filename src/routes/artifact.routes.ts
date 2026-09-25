@@ -16,7 +16,11 @@ import {
 const artifactRoutes = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-artifactRoutes.get("/", validate(getArtifactsSchema), getArtifacts);
+artifactRoutes.get(
+  "/",
+  validate(getArtifactsSchema, { mode: "query" }),
+  getArtifacts,
+);
 artifactRoutes.post(
   "/",
   authenticate,

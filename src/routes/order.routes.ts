@@ -14,7 +14,12 @@ import { validate } from "../middlewares/validate.middleware.ts";
 
 const orderRoutes = express.Router();
 
-orderRoutes.get("", authenticate, validate(getOrdersSchema), getOrders);
+orderRoutes.get(
+  "",
+  authenticate,
+  validate(getOrdersSchema, { mode: "query" }),
+  getOrders,
+);
 orderRoutes.post("", authenticate, validate(createOrderSchema), createOrder);
 orderRoutes.patch("", authenticate, validate(updateOrderSchema), updateOrder);
 

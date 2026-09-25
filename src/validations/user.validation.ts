@@ -10,7 +10,7 @@ export const getUsersSchema = z
     id: z.uuid("Id must be valid uuid"),
     emailId: z.email("Invalid email address"),
     upiId: upiId(),
-    role: z.enum(["buyer", "artist", "admin"]),
+    role: z.enum(["buyer", "seller", "admin"]),
   })
   .partial()
   .refine(

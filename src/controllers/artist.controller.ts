@@ -33,7 +33,8 @@ export const getArtists = async (
   req: Request<{}, {}, GetArtistsInput>,
   res: Response,
 ) => {
-  const { id, emailId, username, page, limit } = req.body;
+  const { id, emailId, username, page, limit } =
+    req.query as unknown as GetArtistsInput;
   const conditions: string[] = ["role = 'seller'"];
   const values: any[] = [];
   if (id) {

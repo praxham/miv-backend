@@ -32,6 +32,7 @@ export interface ArtifactEntity {
 
 export interface ValidationOptions {
   includeFiles?: boolean;
+  mode?: "body" | "query";
 }
 
 export interface MulterFields {

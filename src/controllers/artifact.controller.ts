@@ -18,7 +18,8 @@ export const getArtifacts = async (
   req: Request<{}, {}, GetArtifactsInput>,
   res: Response,
 ) => {
-  const { id, slug, byArtist, toShowOn, page, limit } = req.body;
+  const { id, slug, byArtist, toShowOn, page, limit } =
+    req.query as unknown as GetArtifactsInput;
 
   const fields: string[] = [];
   const values: (string | number | boolean)[] = [];
@@ -54,11 +55,6 @@ export const getArtifacts = async (
   toShowOn && columns.push(toShowOnConditionAndFieldsMapping[toShowOn]);
 
   try {
-    console.log(
-      `SELECT ${columns} FROM artifacts WHERE ${fields.join(" AND ")} LIMIT ? OFFSET ?`,
-      values,
-    );
-
     const result = (await query(
       `SELECT ${columns} FROM artifacts WHERE ${fields.join(" AND ")} LIMIT ? OFFSET ?`,
       values,

@@ -13,7 +13,7 @@ import { authenticate } from "../middlewares/auth.middleware.ts";
 
 const userRoutes = express.Router();
 
-userRoutes.get("/", validate(getUsersSchema), getUsers);
+userRoutes.get("/", validate(getUsersSchema, { mode: "query" }), getUsers);
 userRoutes.patch("/", authenticate, validate(updateUserSchema), updateUser);
 userRoutes.delete("/", authenticate, deleteUser);
 

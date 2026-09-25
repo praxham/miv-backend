@@ -5,7 +5,9 @@ import type { ValidationOptions } from "../types/artifacts.ts";
 export const validate =
   (schema: z.ZodType, options: ValidationOptions = {}) =>
   async (req: Request, res: Response, next: NextFunction) => {
-    const dataToValidate: Record<string, any> = { ...(req.body || {}) };
+    const dataToValidate: Record<string, any> = {
+      ...(options.mode === "query" ? req.query : req.body || {}),
+    };
 
     if (options.includeFiles) {
       if (req.file) {
@@ -48,7 +50,11 @@ export const validate =
       }
       req.body = parsedBody;
     } else {
-      req.body = result.data;
+      if (options.mode === "query") {
+        req.query = result.data as any;
+      } else {
+        req.body = result.data;
+      }
     }
 
     next();
