@@ -11,7 +11,7 @@ import {
   uploadBuffer,
 } from "../r2bucket/r2.service.ts";
 import { findUserByEmailId } from "./auth.controller.ts";
-import type { Order, User } from "../models/schema.types.ts";
+import type { User } from "../models/schema.types.ts";
 import type { MulterFields } from "../types/artifacts.ts";
 import AdmZip from "adm-zip";
 import path from "path";
@@ -29,7 +29,7 @@ export const getArtifacts = async (
   const fields: string[] = [];
   const values: (string | number | boolean)[] = [];
 
-  if (toShowOn !== "dashboard") {
+  if (!toShowOn?.includes("dashboard")) {
     fields.push("is_published = ?");
     values.push("true");
   }
@@ -44,7 +44,11 @@ export const getArtifacts = async (
 
   if (artist) {
     fields.push("by_artist = ?");
-    if (toShowOn === "dashboard") {
+    if (
+      toShowOn === "dashboard_grid_view" ||
+      toShowOn === "dashboard_detailed"
+    ) {
+      // can only send token since this is public method and cant add authentication
       const decodedUser = jwt.verify(
         artist,
         process.env.JWT_SECRET!,
@@ -65,11 +69,18 @@ export const getArtifacts = async (
   const gridViewFields =
     "id, slug, title, (SELECT json_group_array(value) FROM (SELECT value FROM json_each(images) LIMIT 2)) AS images, amount,(SELECT username FROM users WHERE users.id = artifacts.by_artist) AS by_artist";
 
+  const detailedViewFields =
+    "id, slug, title, images, deliverable_file_formats, category, description, amount, (SELECT json_object('id',id,'username',username,'email_id',email_id,'upi_id',upi_id,'whatsapp_number',wa_number) FROM users WHERE users.id = artifacts.by_artist) AS artist";
+
   const toShowOnConditionAndFieldsMapping = {
     homepage: "id,slug,json_extract(images, '$[0]') AS image",
     grid_view: gridViewFields,
-    detailed: `id, slug, title, images, deliverable_file_formats, category, description, amount, (SELECT json_object('id',id,'username',username,'email_id',email_id,'upi_id',upi_id,'whatsapp_number',wa_number) FROM users WHERE users.id = artifacts.by_artist) AS artist`,
-    dashboard: gridViewFields,
+    detailed: detailedViewFields,
+    dashboard_grid_view: gridViewFields,
+    dashboard_detailed: detailedViewFields.replace(
+      "deliverable_file_formats",
+      "deliverable_files, deliverable_file_formats",
+    ),
   };
 
   toShowOn && columns.push(toShowOnConditionAndFieldsMapping[toShowOn]);
