@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import {
   createArtifact,
+  deleteArtifact,
   getArtifacts,
   updateArtifact,
 } from "../controllers/artifact.controller.ts";
@@ -9,6 +10,7 @@ import { validate } from "../middlewares/validate.middleware.ts";
 import { authenticate } from "../middlewares/auth.middleware.ts";
 import {
   createArtifactSchema,
+  deleteArtifactSchema,
   getArtifactsSchema,
   updateArtifactSchema,
 } from "../validations/artifact.validation.ts";
@@ -40,6 +42,12 @@ artifactRoutes.patch(
   ]),
   validate(updateArtifactSchema, { includeFiles: true }),
   updateArtifact,
+);
+artifactRoutes.delete(
+  "/",
+  authenticate,
+  validate(deleteArtifactSchema),
+  deleteArtifact,
 );
 
 export default artifactRoutes;

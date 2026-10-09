@@ -34,12 +34,13 @@ export const signIn = async (
 ) => {
   const rawOTP = generateOTP();
   const hashedOTP = await bcrypt.hash(rawOTP, 10);
-  const spacedOTP = rawOTP.split("").join(" ");
 
-  const { emailId } = req.body;
+  const { emailId, upiId, wantToBecomeSeller } = req.body;
 
   try {
     const existingUser = await findUserByEmailId(emailId);
+
+    const sellerStatus = wantToBecomeSeller ? "pending" : "none";
 
     if (existingUser) {
       const otp_expires_at = new Date(Date.now() + 2 * 60 * 1000).toISOString();
@@ -51,8 +52,16 @@ export const signIn = async (
       const id = crypto.randomUUID();
       const otp_expires_at = new Date(Date.now() + 2 * 60 * 1000).toISOString();
       await query(
-        "INSERT INTO users (id, email_id, role, otp, otp_expires_at) VALUES (?,?,?,?,?)",
-        [id, emailId, "buyer", hashedOTP, otp_expires_at],
+        "INSERT INTO users (id, email_id, role, otp, otp_expires_at, upi_id, seller_status) VALUES (?,?,?,?,?,?,?)",
+        [
+          id,
+          emailId,
+          "buyer",
+          hashedOTP,
+          otp_expires_at,
+          upiId || null,
+          sellerStatus,
+        ],
       );
     }
 
@@ -60,7 +69,7 @@ export const signIn = async (
       from: "Made In Vikhroli <noreply@auth.madeinvikhroli.com>",
       to: [emailId],
       subject: `${rawOTP} is your OTP`,
-      html: otpEmailHtml.replace("{spacedOTP}", spacedOTP),
+      html: otpEmailHtml.replace("{spacedOTP}", rawOTP),
     });
 
     if (error) {
@@ -100,6 +109,7 @@ export const verifyOTP = async (
       const payload = {
         sub: existingUser.id,
         emailId: existingUser.email_id,
+        role: existingUser.role,
       };
       const token = jwt.sign(payload, process.env["JWT_SECRET"] as string, {
         expiresIn: "7d",
@@ -107,7 +117,15 @@ export const verifyOTP = async (
       return res.status(200).json({
         success: true,
         message: "OTP verified successfully",
-        data: { token },
+        data: {
+          token,
+          user: {
+            id: existingUser.id,
+            emailId: existingUser.email_id,
+            role: existingUser.role,
+            upiId: existingUser.upi_id,
+          },
+        },
       });
     } else {
       return res
@@ -116,6 +134,42 @@ export const verifyOTP = async (
     }
   } catch (e) {
     console.error(e);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while processing your request.",
+    });
+  }
+};
+
+export const authMe = async (req: Request<{}, {}, Request>, res: Response) => {
+  const id = req.user?.sub;
+
+  try {
+    const result = (await query("SELECT * FROM users WHERE id = ? LIMIT 1", [
+      id,
+    ])) as any;
+    const orderResults = (await query(
+      "SELECT * FROM users WHERE id = ? LIMIT 1",
+      [id],
+    )) as any;
+
+    const orders = Array.isArray(orderResults)
+      ? orderResults
+      : (orderResults?.results ?? []);
+
+    const user = Array.isArray(result)
+      ? result[0]
+      : (result?.results[0] ?? null);
+
+    if (user) {
+      return res.status(200).json({
+        success: true,
+        message: "user details fetched succesfully",
+        data: { ...user, hasOrders: orders.length > 0 },
+      });
+    }
+  } catch (error) {
+    console.error(error);
     return res.status(500).json({
       success: false,
       message: "An error occurred while processing your request.",

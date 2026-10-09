@@ -9,7 +9,14 @@ export const admitArtistSchema = z.object({
 export const getArtistsSchema = z.object({
   id: z.uuid("Id must be valid uuid").optional(),
   emailId: z.email("Invalid email address").optional(),
-  username: z.string().trim().min(1).optional(),
+  username: z
+    .string()
+    .trim()
+    .min(1)
+    .regex(/^\S+$/, "Username cannot contain spaces")
+    .optional(),
+
+  toShowOn: z.enum(["grid_view", "detailed", "all"]).optional(),
 
   // Pagination
   page: z.coerce.number().int().positive().default(1),
@@ -18,7 +25,12 @@ export const getArtistsSchema = z.object({
 
 export const updateArtistSchema = z
   .object({
-    username: z.string().trim().min(1).optional(),
+    username: z
+      .string()
+      .trim()
+      .min(1)
+      .regex(/^\S+$/, "Username cannot contain spaces")
+      .optional(),
     profilePhotoFile: fileSchema().optional(),
     description: z.string().trim().max(1000).optional(),
     waNumber: z

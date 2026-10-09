@@ -38,3 +38,14 @@ export const deleteBuffer = async (key: string) => {
     }),
   );
 };
+
+export const extractKeyFromUrl = (fileUrl: string) => {
+  if (!fileUrl) return null;
+  try {
+    const urlObj = new URL(fileUrl);
+    return urlObj.pathname.substring(1);
+  } catch (error) {
+    console.error("Invalid URL format:", fileUrl);
+    return null;
+  }
+};

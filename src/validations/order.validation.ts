@@ -1,7 +1,13 @@
 import z from "zod";
 
 export const getOrdersSchema = z.object({
-  artist: z.uuid("artifact must be valid uuid").optional(),
+  get_artist_orders: z
+    .preprocess(
+      (val) => (val === "true" ? true : val === "false" ? false : val),
+      z.boolean({ error: "get_artist_orders must be boolean" }),
+    )
+    .optional(),
+  order_id: z.uuid("order_id must be valid uuid").optional(),
   // Pagination
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(12).default(12),
@@ -10,7 +16,13 @@ export const getOrdersSchema = z.object({
 export const createOrderSchema = z.object({
   artifact: z.uuid("artifact must be valid uuid"),
   amount: z.coerce.number().int().positive(),
-  utr_number: z.string("utr must be provided"),
+  utr: z
+    .string("utr must be provided")
+    .trim()
+    .length(12, "UTR must be exactly 12 digits")
+    .regex(/^[0-9]{12}$/, {
+      message: "Invalid UTR number. Must contain exactly 12 numeric digits.",
+    }),
 });
 
 export const updateOrderSchema = z.object({

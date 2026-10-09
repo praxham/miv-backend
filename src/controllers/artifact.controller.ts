@@ -5,27 +5,34 @@ import type {
   UpdateArtifactInput,
 } from "../validations/artifact.validation.ts";
 import query from "../config/d1.ts";
-import z, { file } from "zod";
-import { deleteBuffer, uploadBuffer } from "../r2bucket/r2.service.ts";
+import {
+  deleteBuffer,
+  extractKeyFromUrl,
+  uploadBuffer,
+} from "../r2bucket/r2.service.ts";
 import { findUserByEmailId } from "./auth.controller.ts";
-import type { Artifact, Order, User } from "../models/schema.types.ts";
+import type { Order, User } from "../models/schema.types.ts";
 import type { MulterFields } from "../types/artifacts.ts";
 import AdmZip from "adm-zip";
 import path from "path";
 import sharp from "sharp";
+import jwt from "jsonwebtoken";
+import type { UserTokenPayload } from "../types/users.ts";
 
 export const getArtifacts = async (
   req: Request<{}, {}, GetArtifactsInput>,
   res: Response,
 ) => {
-  const { id, slug, byArtist, toShowOn, page, limit } =
-    req.query as unknown as GetArtifactsInput;
+  const { id, slug, artist, toShowOn, page, limit } =
+    req.validatedQuery as unknown as GetArtifactsInput;
 
   const fields: string[] = [];
   const values: (string | number | boolean)[] = [];
 
-  fields.push("is_published = ?");
-  values.push(true);
+  if (toShowOn !== "dashboard") {
+    fields.push("is_published = ?");
+    values.push("true");
+  }
   if (id) {
     fields.push("id = ?");
     values.push(id);
@@ -34,22 +41,35 @@ export const getArtifacts = async (
     fields.push("slug = ?");
     values.push(slug);
   }
-  if (byArtist) {
+
+  if (artist) {
     fields.push("by_artist = ?");
-    values.push(byArtist);
+    if (toShowOn === "dashboard") {
+      const decodedUser = jwt.verify(
+        artist,
+        process.env.JWT_SECRET!,
+      ) as UserTokenPayload;
+      values.push(decodedUser.sub);
+    } else {
+      values.push(artist);
+    }
   }
 
   const offset = (page - 1) * limit;
-  values.push(fields.length > 0 || toShowOn === "detailed" ? 1 : limit, offset);
+  const fetchLimit = limit + 1;
+  const isSingleItemQuery = Boolean(id || slug) || toShowOn === "detailed";
+  values.push(isSingleItemQuery ? limit : fetchLimit, offset);
 
   const columns: string[] = [];
 
+  const gridViewFields =
+    "id, slug, title, (SELECT json_group_array(value) FROM (SELECT value FROM json_each(images) LIMIT 2)) AS images, amount,(SELECT username FROM users WHERE users.id = artifacts.by_artist) AS by_artist";
+
   const toShowOnConditionAndFieldsMapping = {
     homepage: "id,slug,json_extract(images, '$[0]') AS image",
-    grid_view:
-      "id, slug, title, (SELECT json_group_array(value) FROM (SELECT value FROm json_each(images) LIMIT 2)) AS images, amount",
-    detailed:
-      "id, slug, title, images, category, description, amount, (SELECT json_object('username',username,'email_id',email_id,'upi_id',upi_id) FROM users WHERE users.id = artifacts.by_artist) AS artist",
+    grid_view: gridViewFields,
+    detailed: `id, slug, title, images, deliverable_file_formats, category, description, amount, (SELECT json_object('id',id,'username',username,'email_id',email_id,'upi_id',upi_id,'whatsapp_number',wa_number) FROM users WHERE users.id = artifacts.by_artist) AS artist`,
+    dashboard: gridViewFields,
   };
 
   toShowOn && columns.push(toShowOnConditionAndFieldsMapping[toShowOn]);
@@ -59,14 +79,9 @@ export const getArtifacts = async (
       `SELECT ${columns} FROM artifacts WHERE ${fields.join(" AND ")} LIMIT ? OFFSET ?`,
       values,
     )) as any;
-    const arifacts = Array.isArray(result) ? result : (result?.results ?? []);
-    if (arifacts.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No arifacts found matching the given criteria.",
-        data: [],
-      });
-    }
+
+    const artifacts = Array.isArray(result) ? result : (result?.results ?? []);
+
     return res.status(200).json({
       success: true,
       message: "arifacts fetched succesfully",
@@ -74,7 +89,7 @@ export const getArtifacts = async (
         page,
         limit,
       },
-      data: arifacts,
+      data: artifacts,
     });
   } catch (error) {
     console.error(error);
@@ -201,19 +216,44 @@ export const updateArtifact = async (
   req: Request<{}, {}, UpdateArtifactInput>,
   res: Response,
 ) => {
-  const { id, title, description, slug, category, isPublished } = req.body;
+  const { id, description, isPublished } = req.body;
 
   try {
-    const order = (await query(
-      "SELECT id FROM orders WHERE artifact = ? LIMIT 1",
+    const ordersResponse = (await query(
+      "SELECT id FROM orders WHERE id = ? LIMIT 1",
       [id],
-    )) as unknown as Order;
+    )) as any;
 
-    if (order.id) {
+    const orders = Array.isArray(ordersResponse)
+      ? ordersResponse
+      : (ordersResponse?.results ?? []);
+
+    if (Array.isArray(orders) && orders?.[0]?.id) {
       return res.status(400).json({
         success: false,
         message:
           "Artifact which is purchased by buyers cant be updated anymore.",
+      });
+    }
+
+    const artifactResponse = (await query(
+      "SELECT description FROM artifacts WHERE id = ?",
+      [id],
+    )) as any;
+
+    const arifacts = Array.isArray(artifactResponse)
+      ? artifactResponse
+      : (artifactResponse?.results ?? []);
+
+    if (
+      Array.isArray(orders) &&
+      description !== undefined &&
+      !description?.includes(arifacts?.[0]?.description)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "The updated description must contain the original description.",
       });
     }
   } catch (error) {
@@ -228,18 +268,6 @@ export const updateArtifact = async (
     const fields: string[] = [];
     const values: any[] = [];
 
-    if (slug !== undefined) {
-      fields.push("slug = ?");
-      values.push(slug);
-    }
-    if (title !== undefined) {
-      fields.push("title = ?");
-      values.push(title);
-    }
-    if (category !== undefined) {
-      fields.push("category = ?");
-      values.push(JSON.stringify(category));
-    }
     if (description !== undefined) {
       fields.push("description = ?");
       values.push(description);
@@ -256,9 +284,104 @@ export const updateArtifact = async (
       values,
     );
 
-    return res.status(201).json({
+    return res.status(200).json({
       success: true,
       message: "Artifact updated successfully.",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while processing your request.",
+    });
+  }
+};
+
+export const deleteArtifact = async (
+  req: Request<{}, {}, UpdateArtifactInput>,
+  res: Response,
+) => {
+  const { id } = req.body;
+  const artist = req.user?.sub;
+  try {
+    const ordersResponse = (await query(
+      "SELECT * FROM orders WHERE artifact = ? LIMIT 1",
+      [id],
+    )) as any;
+
+    const orders = Array.isArray(ordersResponse)
+      ? ordersResponse
+      : (ordersResponse?.results ?? []);
+
+    if (orders && orders.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Artifact which has Orders associated with it cannot be deleted",
+      });
+    }
+
+    const artifactResult = (await query(
+      "SELECT * FROM artifacts WHERE id = ? AND by_artist = ?",
+      [id, artist],
+    )) as any;
+    const artifacts = Array.isArray(artifactResult)
+      ? artifactResult
+      : (artifactResult?.results ?? []);
+
+    if (!artifacts || artifacts.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Artifact Not Found to Delete",
+      });
+    }
+
+    const deletePromises: Promise<any>[] = [];
+    const artifact = artifacts[0];
+    let imageFileUrls: string[] = [];
+    try {
+      imageFileUrls =
+        typeof artifact.images === "string"
+          ? JSON.parse(artifact.images)
+          : artifact.images;
+    } catch (e) {
+      console.error("Failed to parse images JSON:", e);
+    }
+    if (Array.isArray(imageFileUrls)) {
+      for (const imgUrl of imageFileUrls) {
+        const key = extractKeyFromUrl(imgUrl);
+        if (key) {
+          deletePromises.push(
+            deleteBuffer(key).catch((err) =>
+              console.error(`Failed to delete image ${key} from R2:`, err),
+            ),
+          );
+        }
+      }
+    }
+
+    const deliverableUrl = artifact.deliverable_files;
+    if (deliverableUrl) {
+      const key = extractKeyFromUrl(deliverableUrl);
+      if (key) {
+        deletePromises.push(
+          deleteBuffer(key).catch((err) =>
+            console.error(`Failed to delete deliverable ${key} from R2:`, err),
+          ),
+        );
+      }
+    }
+
+    if (deletePromises.length > 0) {
+      await Promise.all(deletePromises);
+    }
+    await query("DELETE FROM artifacts WHERE id = ? AND by_artist = ?", [
+      id,
+      artist,
+    ]);
+    return res.status(200).json({
+      success: true,
+      message: "Artifact deleted successfully.",
     });
   } catch (error) {
     console.error(error);

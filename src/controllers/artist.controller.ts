@@ -15,7 +15,10 @@ export const admitArtist = async (
   const { id } = req.body;
 
   try {
-    await query("UPDATE users SET role = 'seller' where id = ?", [id]);
+    await query(
+      "UPDATE users SET role = 'seller', seller_status = 'approved' where id = ?",
+      [id],
+    );
     return res.status(200).json({
       success: true,
       message: "user successfully admitted as artist",
@@ -33,10 +36,20 @@ export const getArtists = async (
   req: Request<{}, {}, GetArtistsInput>,
   res: Response,
 ) => {
-  const { id, emailId, username, page, limit } =
-    req.query as unknown as GetArtistsInput;
+  let { id, emailId, username, toShowOn, page, limit } =
+    req.validatedQuery as unknown as GetArtistsInput;
+
+  if (!toShowOn && (id || emailId || username)) {
+    toShowOn = "detailed";
+  }
+
   const conditions: string[] = ["role = 'seller'"];
   const values: any[] = [];
+
+  if (!toShowOn) {
+    toShowOn = "grid_view";
+  }
+
   if (id) {
     conditions.push("id = ?");
     values.push(id);
@@ -51,10 +64,31 @@ export const getArtists = async (
     values.push(`%${sanitizedUsername}%`);
   }
 
-  const offset = (page - 1) * limit;
+  const pageNum = page ? Number(page) : 1;
+  const limitNum = limit ? Number(limit) : 12;
+  const offset = (pageNum - 1) * limitNum;
+  values.push(
+    conditions.length > 1 || toShowOn === "detailed" ? 1 : limitNum,
+    offset,
+  );
 
-  const sql = `SELECT * FROM users WHERE ${conditions.join(" AND ")} LIMIT ? OFFSET ?`;
-  values.push(limit, offset);
+  const columns: string[] = [];
+
+  const toShowOnConditionAndFieldsMapping = {
+    grid_view: "id, profile_photo, username",
+    detailed: `id, profile_photo, username, description, socials`,
+    all: `id, profile_photo, username, description, socials, wa_number`,
+  };
+
+  if (toShowOn && toShowOn in toShowOnConditionAndFieldsMapping) {
+    columns.push(
+      toShowOnConditionAndFieldsMapping[
+        toShowOn as keyof typeof toShowOnConditionAndFieldsMapping
+      ],
+    );
+  }
+
+  const sql = `SELECT ${columns.join(", ")} FROM users WHERE ${conditions.join(" AND ")} LIMIT ? OFFSET ?`;
 
   try {
     const result = (await query(sql, values)) as any;
@@ -74,7 +108,7 @@ export const getArtists = async (
         page,
         limit,
       },
-      data: result,
+      data: artists,
     });
   } catch (error) {
     console.error(error);

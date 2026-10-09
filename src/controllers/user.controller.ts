@@ -10,7 +10,7 @@ export const getUsers = async (
   req: Request<{}, {}, GetUsersInput>,
   res: Response,
 ) => {
-  const { id, emailId, upiId, role } = req.query;
+  const { id, emailId, upiId, role } = req.validatedQuery;
 
   const conditions: string[] = [];
   const values: any[] = [];
@@ -65,8 +65,16 @@ export const updateUser = async (
   const { upiId } = req.body;
 
   const id = req.user?.sub;
+  const emailId = req.user?.emailId;
 
   try {
+    const user = await findUserByEmailId(emailId as string);
+    if (user?.upi_id) {
+      return res.status(400).json({
+        success: false,
+        message: "user already has upi id, cannot overwrite that",
+      });
+    }
     await query("UPDATE users SET upi_id = ? WHERE id = ?", [upiId, id]);
 
     return res.status(200).json({
@@ -88,10 +96,14 @@ export const deleteUser = async (req: Request, res: Response) => {
 
     const existingUser = await findUserByEmailId(emailId as string);
 
-    const orders = await query(
+    const ordersResponse = (await query(
       "SELECT * FROM orders WHERE bought_by = ? LIMIT 1",
       [existingUser?.id],
-    );
+    )) as any;
+
+    const orders = Array.isArray(ordersResponse)
+      ? ordersResponse
+      : (ordersResponse?.results ?? []);
 
     if (existingUser?.role === "buyer" && orders.length !== 0) {
       await query("DELETE FROM users WHERE id = ?", [existingUser.id]);

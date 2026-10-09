@@ -38,7 +38,6 @@ export const authenticate = (
       });
     }
     req.user = decoded;
-    console.log({ decoded });
 
     next();
   } catch (err) {

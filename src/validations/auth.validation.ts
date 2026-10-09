@@ -1,7 +1,12 @@
 import z, { email } from "zod";
+import { upiId } from "./user.validation.ts";
 
 export const signInSchema = z.object({
   emailId: z.email("Invalid email address"),
+  upiId: upiId().optional(),
+  wantToBecomeSeller: z
+    .boolean("wantToBecomeSeller must be boolean")
+    .optional(),
 });
 
 export const verifyOtpSchema = z.object({

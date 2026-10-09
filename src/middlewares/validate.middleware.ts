@@ -2,6 +2,14 @@ import type { NextFunction, Request, Response } from "express";
 import z from "zod";
 import type { ValidationOptions } from "../types/artifacts.ts";
 
+declare global {
+  namespace Express {
+    interface Request {
+      validatedQuery: any;
+    }
+  }
+}
+
 export const validate =
   (schema: z.ZodType, options: ValidationOptions = {}) =>
   async (req: Request, res: Response, next: NextFunction) => {
@@ -51,7 +59,7 @@ export const validate =
       req.body = parsedBody;
     } else {
       if (options.mode === "query") {
-        req.query = result.data as any;
+        req.validatedQuery = result.data;
       } else {
         req.body = result.data;
       }
