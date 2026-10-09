@@ -11,7 +11,13 @@ export const getArtifactsSchema = z
       .optional(),
 
     toShowOn: z
-      .enum(["homepage", "grid_view", "detailed", "dashboard"])
+      .enum([
+        "homepage",
+        "grid_view",
+        "detailed",
+        "dashboard_grid_view",
+        "dashboard_detailed",
+      ])
       .optional(),
 
     // Pagination
