@@ -52,7 +52,7 @@ export const createArtifactSchema = z.object({
     return val;
   }, z.array(z.string())),
   description: z.string().trim().max(1000),
-  amount: z.coerce.number().positive(),
+  amount: z.coerce.number().nonnegative(),
   isPublished: z.preprocess((val) => {
     if (val === "true") return true;
     if (val === "false") return false;
@@ -60,7 +60,7 @@ export const createArtifactSchema = z.object({
   }, z.boolean()),
   deliverableFiles: fileSchema({
     allowedTypes: ["application/zip", "application/x-zip-compressed"],
-  }),
+  }).optional(),
 });
 
 export const updateArtifactSchema = z
