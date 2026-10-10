@@ -8,8 +8,54 @@ import query from "../config/d1.ts";
 import { statusRank } from "../common/constatns.ts";
 import { Resend } from "resend";
 import { deliverableEmailHtml } from "../constants/deliverable.ts";
+import { physicalDeliveryEmailHtml } from "../constants/physicalDelivery.ts";
+import type { orderEmailData } from "../types/orders.ts";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+const digitalDeliverContent = async (order: orderEmailData) => {
+  const finalEmailHtml = deliverableEmailHtml
+    .replace("{artist_username}", order.artist_username)
+    .replace("{amount}", order.amount as unknown as string)
+    .replace("{utr}", order.utr)
+    .replace("{artifact_title}", order.artifact_title)
+    .replace(
+      "{artifact_deliverable_url}",
+      order.artifact_deliverable_files as string,
+    );
+
+  const { data: resendData, error } = await resend.emails.send({
+    from: "Made In Vikhroli <noreply@digital-delivery.madeinvikhroli.com>",
+    to: [order.buyer_email_id],
+    cc: [order.artist_email_id],
+    subject: `Payment Confirmed: "${order.artifact_title}"`,
+    html: finalEmailHtml,
+  });
+
+  if (error) {
+    console.error("Failed to send digital delivery email:", error);
+  }
+};
+
+const physicalContentEmailNotifier = async (order: orderEmailData) => {
+  const finalEmailHtml = physicalDeliveryEmailHtml
+    .replace("{artist_username}", order.artist_username)
+    .replace("{amount}", order.amount as unknown as string)
+    .replace("{utr}", order.utr)
+    .replace("{artifact_title}", order.artifact_title);
+
+  const { data: resendData, error } = await resend.emails.send({
+    from: "Made In Vikhroli <noreply@digital-delivery.madeinvikhroli.com>",
+    to: [order.buyer_email_id],
+    cc: [order.artist_email_id],
+    subject: `Payment Confirmed: "${order.artifact_title}"`,
+    html: finalEmailHtml,
+  });
+
+  if (error) {
+    console.error("Failed to send physical delivery email:", error);
+  }
+};
 
 export const getOrders = async (
   req: Request<{}, {}, GetOrdersInput>,
@@ -100,11 +146,56 @@ export const createOrder = async (
   const bought_by = req.user?.sub;
 
   try {
+    const artifactsResponse = (await query(
+      "SELECT title, category, price, deliverable_files, u_artist.username as artist_username, u_artist.email_id as artist_email_id FROM artifacts JOIN users u_artist ON artifacts.by_artist = u_artist.id  WHERE artifacts.id = ?",
+      [artifact],
+    )) as any;
+
+    const artifacts = Array.isArray(artifactsResponse)
+      ? artifactsResponse
+      : (artifactsResponse?.results ?? []);
+
+    const artifactResult = artifacts[0];
+
+    if (!artifactResult) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Artifact not found." });
+    }
+
+    if (amount === 0 && artifactResult.price > 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid amount." });
+    }
+
     const id = crypto.randomUUID();
     await query(
       "INSERT INTO orders (id, artifact, bought_by, amount, utr) VALUES (?,?,?,?,?)",
       [id, artifact, bought_by, amount, utr],
     );
+
+    if (amount === 0) {
+      const artifactResult = artifacts[0];
+
+      const category = artifactResult.category;
+
+      if (category?.includes("physical")) {
+        console.warn(
+          "free product but physical deliverable, skipping digtial delivery",
+        );
+      } else {
+        await digitalDeliverContent({
+          artist_username: artifactResult.artist_username,
+          buyer_email_id: req.user?.emailId as string,
+          artist_email_id: artifactResult.artist_email_id,
+          amount,
+          utr,
+          artifact_title: artifactResult.title,
+          artifact_deliverable_files: artifactResult.deliverable_files,
+        });
+      }
+    }
     return res.status(201).json({
       success: true,
       message: "Order created successfully.",
@@ -135,6 +226,12 @@ export const updateOrder = async (
     )) as any;
     const orders = Array.isArray(result) ? result : (result?.results ?? []);
 
+    if (!orders.length) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found." });
+    }
+
     const currentStatus = orders[0].payment_status;
     const curentRank = statusRank[currentStatus];
     const targetRank = statusRank[payment_status];
@@ -162,7 +259,8 @@ export const updateOrder = async (
       u_artist.email_id AS artist_email_id,
       u_artist.username AS artist_username,
       a.title as artifact_title,
-      a.deliverable_files as artifact_deliverable_files
+      a.deliverable_files as artifact_deliverable_files,
+      a.category as artifact_categories
       FROM orders o 
       JOIN artifacts a ON o.artifact = a.id 
       JOIN users u_buyer ON o.bought_by = u_buyer.id
@@ -178,29 +276,12 @@ export const updateOrder = async (
 
       const order = orders[0];
 
-      const finalEmailHtml = deliverableEmailHtml
-        .replace("{artist_username}", order.artist_username)
-        .replace("{amount}", order.amount)
-        .replace("{utr}", order.utr)
-        .replace("{artifact_title}", order.artifact_title)
-        .replace(
-          "{artifact_deliverable_url}",
-          order.artifact_deliverable_files,
-        );
+      const categories = order?.artifact_categories;
 
-      const { data: resendData, error } = await resend.emails.send({
-        from: "Made In Vikhroli <noreply@digital-delivery.madeinvikhroli.com>",
-        to: [order.buyer_email_id],
-        cc: [order.artist_email_id],
-        subject: `Payment Confirmed: "${order.artifact_title}"`,
-        html: finalEmailHtml,
-      });
-
-      if (error) {
-        return res.status(500).json({
-          success: false,
-          message: "Failed to send confirmation email.",
-        });
+      if (categories?.includes("physical")) {
+        physicalContentEmailNotifier(order);
+      } else {
+        digitalDeliverContent(order);
       }
     }
     return res.status(201).json({
