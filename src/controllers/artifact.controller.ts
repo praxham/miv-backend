@@ -111,6 +111,49 @@ export const getArtifacts = async (
   }
 };
 
+export const getFreeArtifactContent = async (
+  req: Request<{}, {}, CreateArtifactInput>,
+  res: Response,
+) => {
+  const { id } = req.validatedQuery;
+  try {
+    const result = (await query(
+      "SELECT amount, deliverable_files, category FROM artifacts WHERE id = ?",
+      [id],
+    )) as any;
+
+    const artifacts = Array.isArray(result) ? result : (result?.results ?? []);
+
+    const artifact = artifacts?.[0];
+
+    if (
+      artifact.deliverable_files &&
+      artifact.amount === 0 &&
+      artifact.category?.includes("free")
+    ) {
+      return res.status(200).json({
+        success: true,
+        message: "Artifact deliverable_files link fetched successfully",
+        data: {
+          url: artifact.deliverable_files,
+        },
+      });
+    } else {
+      return res.status(400).json({
+        success: true,
+        message:
+          "Requested artifact is not free or does not have any deliverable_files",
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while processing your request.",
+    });
+  }
+};
+
 export const createArtifact = async (
   req: Request<{}, {}, CreateArtifactInput>,
   res: Response,

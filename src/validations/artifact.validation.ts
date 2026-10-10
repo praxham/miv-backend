@@ -85,7 +85,12 @@ export const deleteArtifactSchema = z.object({
   id: z.uuid("artifact Id is required to delete artifact"),
 });
 
+export const getFreeArtifactSchema = z.object({
+  id: z.uuid("artifact Id is required to get deliverable content"),
+});
+
 export type GetArtifactsInput = z.infer<typeof getArtifactsSchema>;
 export type CreateArtifactInput = z.infer<typeof createArtifactSchema>;
 export type UpdateArtifactInput = z.infer<typeof updateArtifactSchema>;
 export type DeleteArtifactInput = z.infer<typeof deleteArtifactSchema>;
+export type GetFreeArtifactContentInput = z.infer<typeof getFreeArtifactSchema>;
