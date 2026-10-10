@@ -4,6 +4,7 @@ import {
   createArtifact,
   deleteArtifact,
   getArtifacts,
+  getFreeArtifactContent,
   updateArtifact,
 } from "../controllers/artifact.controller.ts";
 import { validate } from "../middlewares/validate.middleware.ts";
@@ -12,6 +13,7 @@ import {
   createArtifactSchema,
   deleteArtifactSchema,
   getArtifactsSchema,
+  getFreeArtifactSchema,
   updateArtifactSchema,
 } from "../validations/artifact.validation.ts";
 
@@ -22,6 +24,11 @@ artifactRoutes.get(
   "/",
   validate(getArtifactsSchema, { mode: "query" }),
   getArtifacts,
+);
+artifactRoutes.get(
+  "/free",
+  validate(getFreeArtifactSchema, { mode: "query" }),
+  getFreeArtifactContent,
 );
 artifactRoutes.post(
   "/",
