@@ -147,7 +147,7 @@ export const createOrder = async (
 
   try {
     const artifactsResponse = (await query(
-      "SELECT title, category, price, deliverable_files, u_artist.username as artist_username, u_artist.email_id as artist_email_id FROM artifacts JOIN users u_artist ON artifacts.by_artist = u_artist.id  WHERE artifacts.id = ?",
+      "SELECT title, category, amount, deliverable_files, u_artist.username as artist_username, u_artist.email_id as artist_email_id FROM artifacts JOIN users u_artist ON artifacts.by_artist = u_artist.id  WHERE artifacts.id = ?",
       [artifact],
     )) as any;
 
@@ -163,7 +163,7 @@ export const createOrder = async (
         .json({ success: false, message: "Artifact not found." });
     }
 
-    if (amount === 0 && artifactResult.price > 0) {
+    if (amount === 0 && artifactResult.amount > 0) {
       return res
         .status(400)
         .json({ success: false, message: "Invalid amount." });
